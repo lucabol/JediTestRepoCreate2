@@ -2,7 +2,7 @@
 
 import os
 import re
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 
 
 class ConfigurationError(Exception):
@@ -93,7 +93,7 @@ class Config:
         model_pattern = re.compile(r'^[a-zA-Z0-9/_.-]+$')
         return bool(model_pattern.match(model))
 
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         """Return configuration as dictionary."""
         return {
             "endpoint": self.endpoint,

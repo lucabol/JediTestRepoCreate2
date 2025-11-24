@@ -91,6 +91,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     Returns:
         Exit code (0 = success, non-zero = error)
     """
+    args = None
     try:
         # Parse arguments
         args = parse_args(argv)
@@ -134,7 +135,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 130
     except Exception as e:
         print(f"Unexpected error: {e}", file=sys.stderr)
-        if args.verbose if 'args' in locals() else False:
+        if args and args.verbose:
             import traceback
             traceback.print_exc()
         return 1
