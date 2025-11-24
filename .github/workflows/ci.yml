@@ -7,14 +7,19 @@ on:
     branches: [ main, develop ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Test Suite
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -57,7 +62,9 @@ jobs:
   lint:
     name: Linting
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -87,7 +94,9 @@ jobs:
   type-check:
     name: Type Checking
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -113,7 +122,10 @@ jobs:
   benchmark:
     name: Performance Benchmark
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+      pull-requests: write  # For posting benchmark results as comments
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -197,7 +209,8 @@ jobs:
     needs: [test, lint, type-check, benchmark]
     runs-on: ubuntu-latest
     if: always()
-    
+    permissions: {}  # No permissions needed for this job
+
     steps:
     - name: Check all jobs
       run: |
