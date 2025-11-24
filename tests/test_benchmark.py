@@ -233,7 +233,7 @@ class TestBenchmarkValidation:
         # Mean should be within reasonable range of median
         assert abs(results["mean"] - results["median"]) < results["max"] - results["min"]
 
-        # P95 should be >= P99 is conceptually wrong, P99 >= P95
+        # P99 should be >= P95
         assert results["p99"] >= results["p95"]
 
         # P95 should be >= median

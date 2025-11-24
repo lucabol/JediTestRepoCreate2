@@ -142,28 +142,11 @@ jobs:
     - name: Run performance benchmark
       run: |
         python -m llmchess.benchmark
-    
+
     - name: Check for regression
       run: |
-        python -c "
-        from pathlib import Path
-        from llmchess.benchmark import BenchmarkHarness
-        
-        harness = BenchmarkHarness(num_iterations=100, mock_response_time=0.05)
-        harness.run_benchmark()
-        
-        baseline_path = Path('benchmark_baseline.json')
-        passed, message = harness.check_regression(baseline_path, threshold_percent=15.0)
-        
-        print(message)
-        
-        if not passed and baseline_path.exists():
-            exit(1)
-        
-        # Save current results as new baseline
-        harness.save_results(baseline_path)
-        "
-    
+        python scripts/check_regression.py
+
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4
       with:
