@@ -10,3 +10,61 @@ The features are:
 5. A --verbose mode to debug possible problems
 
 The application is built using the Microsoft Agent Framework to communicate with Azure AI Foundry LLM services. It uses the following environment variables to connect to Azure Ai Foundry LLM service: AZURE_AI_FOUNDRY_ENDPOINT, AZURE_AI_MODEL
+
+## Development
+
+### Setup
+
+Install dependencies using UV or pip:
+
+```bash
+uv pip install -e ".[dev]"
+# or
+pip install -e ".[dev]"
+```
+
+### Testing
+
+Run tests with coverage:
+
+```bash
+pytest --cov --cov-report=term-missing
+```
+
+### Linting
+
+Run code linting:
+
+```bash
+ruff check llmchess/ tests/
+ruff format llmchess/ tests/
+```
+
+### Type Checking
+
+Run static type checking:
+
+```bash
+mypy llmchess/ --strict
+```
+
+### Performance Benchmarks
+
+Run performance benchmarks with mocked Azure responses:
+
+```bash
+python -m llmchess.benchmark
+```
+
+The benchmark measures AI move latency and includes regression checks to catch performance degradation.
+
+## Continuous Integration
+
+The project includes a comprehensive GitHub Actions CI workflow that runs on every push and pull request:
+
+- **Tests**: Runs the full test suite with coverage reporting (84% coverage)
+- **Linting**: Checks code style and quality using Ruff
+- **Type Checking**: Validates type annotations with mypy in strict mode
+- **Performance Benchmarks**: Runs lightweight benchmarks with mocked Azure responses and checks for latency regressions (threshold: 15%)
+
+Coverage reports and benchmark results are uploaded as artifacts and displayed in pull request comments.
