@@ -1,0 +1,228 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        uv pip install --system -e ".[dev]"
+    
+    - name: Run tests with coverage
+      run: |
+        pytest --cov --cov-report=term-missing --cov-report=xml --cov-report=html -v
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      if: matrix.python-version == '3.11'
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+    
+    - name: Upload coverage HTML report
+      uses: actions/upload-artifact@v4
+      if: matrix.python-version == '3.11'
+      with:
+        name: coverage-report
+        path: htmlcov/
+        retention-days: 7
+
+  lint:
+    name: Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Install dependencies
+      run: |
+        uv pip install --system -e ".[dev]"
+    
+    - name: Run Ruff linting
+      run: |
+        ruff check llmchess/ tests/
+    
+    - name: Run Ruff formatting check
+      run: |
+        ruff format --check llmchess/ tests/
+
+  type-check:
+    name: Type Checking
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Install dependencies
+      run: |
+        uv pip install --system -e ".[dev]"
+    
+    - name: Run mypy
+      run: |
+        mypy llmchess/ --strict
+
+  benchmark:
+    name: Performance Benchmark
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Install dependencies
+      run: |
+        uv pip install --system -e ".[dev]"
+    
+    - name: Download baseline benchmark results
+      continue-on-error: true
+      uses: actions/download-artifact@v4
+      with:
+        name: benchmark-baseline
+        path: .
+    
+    - name: Run performance benchmark
+      run: |
+        python -m llmchess.benchmark
+    
+    - name: Check for regression
+      run: |
+        python -c "
+        from pathlib import Path
+        from llmchess.benchmark import BenchmarkHarness
+        
+        harness = BenchmarkHarness(num_iterations=100, mock_response_time=0.05)
+        harness.run_benchmark()
+        
+        baseline_path = Path('benchmark_baseline.json')
+        passed, message = harness.check_regression(baseline_path, threshold_percent=15.0)
+        
+        print(message)
+        
+        if not passed and baseline_path.exists():
+            exit(1)
+        
+        # Save current results as new baseline
+        harness.save_results(baseline_path)
+        "
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: benchmark_results.json
+        retention-days: 30
+    
+    - name: Upload baseline benchmark results
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: benchmark-baseline
+        path: benchmark_baseline.json
+        retention-days: 90
+    
+    - name: Comment benchmark results on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const results = JSON.parse(fs.readFileSync('benchmark_results.json', 'utf8'));
+          
+          const comment = `## 🚀 Performance Benchmark Results
+          
+          | Metric | Value |
+          |--------|-------|
+          | Mean Latency | ${results.mean.toFixed(4)}s |
+          | Median Latency | ${results.median.toFixed(4)}s |
+          | Std Dev | ${results.stdev.toFixed(4)}s |
+          | Min | ${results.min.toFixed(4)}s |
+          | Max | ${results.max.toFixed(4)}s |
+          | P95 | ${results.p95.toFixed(4)}s |
+          | P99 | ${results.p99.toFixed(4)}s |
+          | Iterations | ${results.num_iterations} |
+          
+          *Benchmark run with mocked Azure AI responses*`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+  all-checks:
+    name: All Checks Passed
+    needs: [test, lint, type-check, benchmark]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Check all jobs
+      run: |
+        if [[ "${{ needs.test.result }}" != "success" || \
+              "${{ needs.lint.result }}" != "success" || \
+              "${{ needs.type-check.result }}" != "success" || \
+              "${{ needs.benchmark.result }}" != "success" ]]; then
+          echo "One or more checks failed"
+          exit 1
+        fi
+        echo "All checks passed successfully!"
