@@ -51,3 +51,4 @@ dmypy.json
 
 # Benchmark results
 benchmark_results.json
+benchmark_baseline.json
