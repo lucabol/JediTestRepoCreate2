@@ -21,6 +21,7 @@ class BenchmarkHarness:
         self.num_iterations = num_iterations
         self.mock_response_time = mock_response_time
         self.results: list[float] = []
+        self._results_dict: dict[str, Any] | None = None
 
     def run_benchmark(self) -> dict[str, Any]:
         """Run AI move latency benchmark.
@@ -42,7 +43,7 @@ class BenchmarkHarness:
 
         self.results = latencies
 
-        return {
+        self._results_dict = {
             "num_iterations": self.num_iterations,
             "mock_response_time": self.mock_response_time,
             "latencies": latencies,
@@ -54,6 +55,8 @@ class BenchmarkHarness:
             "p95": self._percentile(latencies, 95),
             "p99": self._percentile(latencies, 99),
         }
+
+        return self._results_dict
 
     @staticmethod
     def _percentile(data: list[float], percentile: float) -> float:
@@ -83,13 +86,11 @@ class BenchmarkHarness:
         Args:
             filepath: Path to save results
         """
-        if not self.results:
+        if not self._results_dict:
             raise ValueError("No benchmark results to save. Run benchmark first.")
 
-        results = self.run_benchmark()
-
         with open(filepath, "w") as f:
-            json.dump(results, f, indent=2)
+            json.dump(self._results_dict, f, indent=2)
 
     def check_regression(
         self, baseline_filepath: Path, threshold_percent: float = 10.0
@@ -103,7 +104,7 @@ class BenchmarkHarness:
         Returns:
             Tuple of (passed, message)
         """
-        if not self.results:
+        if not self._results_dict:
             return False, "No benchmark results available. Run benchmark first."
 
         if not baseline_filepath.exists():
@@ -112,8 +113,7 @@ class BenchmarkHarness:
         with open(baseline_filepath) as f:
             baseline = json.load(f)
 
-        current_results = self.run_benchmark()
-        current_mean = current_results["mean"]
+        current_mean = self._results_dict["mean"]
         baseline_mean = baseline["mean"]
 
         if baseline_mean == 0:
